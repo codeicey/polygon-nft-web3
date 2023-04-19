@@ -26,17 +26,19 @@ export default function CreatorDashboard() {
 
         const contract = new ethers.Contract(marketplaceAddress, NFTMarketplace.abi, signer)
         const data = await contract.fetchItemsListed()
+        console.log(data)
 
         const items = await Promise.all(data.map(async (i: { tokenId: { toNumber: () => any }; price: { toString: () => ethers.BigNumberish }; seller: any; owner: any }) => {
             const tokenUri = await contract.tokenURI(i.tokenId)
             const meta = await axios.get(tokenUri)
+            const metadata = JSON.parse(meta.data)
             let price = ethers.utils.formatUnits(i.price.toString(), 'ether')
             let item = {
                 price,
                 tokenId: i.tokenId.toNumber(),
                 seller: i.seller,
                 owner: i.owner,
-                image: meta.data.image,
+                image: metadata.image,
             }
             return item
         }))

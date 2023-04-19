@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { ethers } from 'ethers'
-import { create as ipfsHttpClient } from 'ipfs-http-client'
+import { Web3Storage } from "web3.storage";
 import { useRouter } from 'next/router'
 import Web3Modal from 'web3modal'
 
-const client = ipfsHttpClient({ url: 'https://ipfs.infura.io:5001/api/v0' })
 
 import {
   marketplaceAddress
@@ -18,32 +17,61 @@ export default function CreateItem() {
   const router = useRouter()
 
   async function onChange(e: any) {
-    const file = e.target.files[0]
+    const file = new File([e.target.files[0]], "image.jpg", {
+      type: e.target.files[0].type,
+    })
     try {
-      const added = await client.add(
-        file,
-        {
-          progress: (prog) => console.log(`received: ${prog}`)
-        }
-      )
-      const url = `https://ipfs.infura.io/ipfs/${added.path}`
+      const token = process.env.NEXT_PUBLIC_WEB3STORAGE_TOKEN;
+      // console.log("THE TOKEN ----------->>>>", token);
+      if (!token) {
+        return console.error(
+          "A token is needed. You can create one on https://web3.storage"
+        );
+      }
 
+      const storage = new Web3Storage({ token });
+      const cid = await storage.put([file], {
+        name: "image",
+      });
+      const url = "https://" +
+        cid +
+        ".ipfs.w3s.link/" +
+        "image.jpg"
+      console.log(url)
       setFileUrl(url)
     } catch (error) {
       console.log('Error uploading file: ', error)
     }
   }
-  async function uploadToIPFS() {
+  async function uploadToW3St() {
     const { name, description, price } = formInput
     if (!name || !description || !price || !fileUrl) return
     /* first, upload to IPFS */
     const data = JSON.stringify({
       name, description, image: fileUrl
     })
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+    const file = new File([blob], 'nft.json')
     try {
-      const added = await client.add(data)
-      const url = `https://ipfs.infura.io/ipfs/${added.path}`
+      const token = process.env.NEXT_PUBLIC_WEB3STORAGE_TOKEN;
+      // console.log("THE TOKEN ----------->>>>", token);
+      if (!token) {
+        return console.error(
+          "A token is needed. You can create one on https://web3.storage"
+        );
+      }
+
+      const storage = new Web3Storage({ token });
+      const cid = await storage.put([file], {
+        name: "nft",
+      });
+
+      const url = "https://" +
+        cid +
+        ".ipfs.w3s.link/" +
+        "nft.json"
       /* after file is uploaded to IPFS, return the URL to use it in the transaction */
+      console.log(url)
       return url
     } catch (error) {
       console.log('Error uploading file: ', error)
@@ -51,7 +79,8 @@ export default function CreateItem() {
   }
 
   async function listNFTForSale() {
-    const url = await uploadToIPFS()
+    const url = await uploadToW3St()
+    console.log(url)
     const web3Modal = new Web3Modal()
     const connection = await web3Modal.connect()
     const provider = new ethers.providers.Web3Provider(connection)
